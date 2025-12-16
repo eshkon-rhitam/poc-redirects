@@ -1,8 +1,9 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-
+export type RedirectType = "Permanent" | "Temporary";
 interface RouteMapping {
   from: string;
   to: string;
+  type: RedirectType;
 }
 
 interface RouteState {
@@ -23,10 +24,7 @@ const routeSlice = createSlice({
       }
       state.mappings.push(action.payload);
     },
-    updateMapping: (
-      state,
-      action: PayloadAction<{ from: string; to: string }>
-    ) => {
+    updateMapping: (state, action: PayloadAction<RouteMapping>) => {
       if (!Array.isArray(state.mappings)) return;
       const idx = state.mappings.findIndex(
         (m) => m.from === action.payload.from
@@ -42,11 +40,11 @@ const routeSlice = createSlice({
         else state.mappings[idx] = item;
       });
     },
-    deleteMapping: (state, action: PayloadAction<RouteMapping>) => {
+    deleteMapping: (state, action: PayloadAction<{ from: string }>) => {
       if (!Array.isArray(state.mappings)) return;
 
       state.mappings = state.mappings.filter(
-        (m) => !(m.from === action.payload.from && m.to === action.payload.to)
+        (m) => !(m.from === action.payload.from)
       );
     },
   },

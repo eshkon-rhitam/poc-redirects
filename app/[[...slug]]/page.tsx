@@ -4,12 +4,14 @@ import { useAppDispatch, useAppSelector } from "@/lib/store";
 import {
   addMapping,
   deleteMapping,
+  RedirectType,
   updateMapping,
   upsertMany,
 } from "@/lib/features/routeSlice";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { domainToHost } from "@/lib/constants";
+import { buildExportData, downloadJson } from "@/lib/exportFunction";
 
 export default function CatchAllPage() {
   const dispatch = useAppDispatch();
@@ -20,11 +22,16 @@ export default function CatchAllPage() {
   const [fromPath, setFromPath] = useState("");
   const [toPath, setToPath] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+
   const [editFrom, setEditFrom] = useState("");
   const [editTo, setEditTo] = useState("");
+  const [editType, setEditType] = useState<RedirectType>("Temporary");
+
   const [activeDomain, setActiveDomain] = useState(
     domainToHost[Object.keys(domainToHost)[0]]
   );
+  const [redirectType, setRedirectType] = useState<RedirectType>("Permanent");
+
   useEffect(() => {
     if (pathname === "/") return;
     if (!Array.isArray(mappings)) return;
@@ -49,15 +56,22 @@ export default function CatchAllPage() {
       return;
     }
 
-    dispatch(addMapping({ from: normalizedFrom, to: normalizedTo }));
+    dispatch(
+      addMapping({
+        from: normalizedFrom,
+        to: normalizedTo,
+        type: redirectType,
+      })
+    );
     setFromPath("");
     setToPath("");
   };
 
-  const startEdit = (m: { from: string; to: string }) => {
+  const startEdit = (m: { from: string; to: string; type: RedirectType }) => {
     setEditingId(m.from);
     setEditFrom(m.from.replace(/^\//, ""));
     setEditTo(m.to.replace(/^\//, ""));
+    setEditType(m.type ?? "Permanent");
   };
 
   const saveEdit = () => {
@@ -66,12 +80,13 @@ export default function CatchAllPage() {
       updateMapping({
         from: `${editFrom}`,
         to: `${editTo}`,
+        type: editType,
       })
     );
     setEditingId(null);
   };
   const handleDelete = (m: { from: string; to: string }) => {
-    dispatch(deleteMapping({ from: m.from, to: m.to }));
+    dispatch(deleteMapping({ from: m.from }));
     setEditingId(null);
   };
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,9 +104,11 @@ export default function CatchAllPage() {
       .map((cols) => {
         const fromRaw = cols[1].trim();
         const toRaw = cols[2].trim();
+        const type: RedirectType = "Temporary";
         return {
           from: fromRaw,
           to: toRaw,
+          type,
         };
       });
 
@@ -99,6 +116,14 @@ export default function CatchAllPage() {
 
     dispatch(upsertMany(parsed));
     e.target.value = "";
+  };
+  const handleExport = () => {
+    const exportData = buildExportData(mappings);
+    if (!exportData.length) {
+      alert("No mappings to export");
+      return;
+    }
+    downloadJson(exportData, "next-redirects.json");
   };
   return (
     <div className="p-8 mx-auto">
@@ -117,8 +142,16 @@ export default function CatchAllPage() {
           Expected columns: Domain, Current URL, Target redirect URL
         </p>
       </div>
+
       <div className="w-full mb-8 space-y-2 text-black">
         <h2 className="font-semibold text-white">Current mappings</h2>
+        <button
+          type="button"
+          onClick={handleExport}
+          className="px-3 py-2 text-sm bg-emerald-600 text-white rounded hover:bg-emerald-700"
+        >
+          Export as JSON
+        </button>
         {Array.isArray(mappings) && mappings.length > 0 ? (
           mappings.map((m, index) => (
             <div
@@ -138,6 +171,16 @@ export default function CatchAllPage() {
                     value={editTo}
                     onChange={(e) => setEditTo(e.target.value)}
                   />
+                  <select
+                    className="border rounded px-2 py-1"
+                    value={editType}
+                    onChange={(e) =>
+                      setEditType(e.target.value as RedirectType)
+                    }
+                  >
+                    <option value="Temporary">Temporary (307)</option>
+                    <option value="Permanent">Permanent (308)</option>
+                  </select>
                   <button
                     className="px-2 py-1 text-sm bg-green-600 text-white rounded"
                     onClick={saveEdit}
@@ -161,8 +204,10 @@ export default function CatchAllPage() {
                 <>
                   <span className="font-mono w-max">{m.from}</span>
                   <span className="flex-1 h-px bg-black" />
-
                   <span className="font-mono ml-auto">{m.to}</span>
+                  <span className="font-mono ml-auto bg-background text-white p-2 rounded-lg">
+                    {m.type}
+                  </span>
                   <button
                     className="px-2 py-1 text-sm bg-blue-600 text-white rounded"
                     onClick={() => startEdit(m)}
@@ -222,6 +267,19 @@ export default function CatchAllPage() {
               placeholder="new-page"
               className="w-full p-3 border rounded-r-lg focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Redirect type
+            </label>
+            <select
+              value={redirectType}
+              onChange={(e) => setRedirectType(e.target.value as RedirectType)}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="permanent">Permanent (301)</option>
+              <option value="temporary">Temporary (302)</option>
+            </select>
           </div>
         </div>
 
