@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import { usePathname } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/lib/store";
@@ -12,6 +13,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { domainToHost } from "@/lib/constants";
 import { buildExportData, downloadJson } from "@/lib/exportFunction";
+import { getEntitiesByCanonical } from "@/lib/entities";
 
 export default function CatchAllPage() {
   const dispatch = useAppDispatch();
@@ -31,6 +33,12 @@ export default function CatchAllPage() {
     domainToHost[Object.keys(domainToHost)[0]]
   );
   const [redirectType, setRedirectType] = useState<RedirectType>("Permanent");
+
+  const [entities, setEntities] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [canonicalUrl, setCanonicalUrl] = useState(
+    "https://www.altusgroup.com"
+  );
 
   useEffect(() => {
     if (pathname === "/") return;
@@ -97,14 +105,18 @@ export default function CatchAllPage() {
     const lines = text.split(/\r?\n/).filter(Boolean);
 
     const [, ...rows] = lines;
-
+    const isRedirectType = (value: string): value is RedirectType =>
+      value === "Permanent" || value === "Temporary";
     const parsed = rows
       .map((line) => line.split(","))
       .filter((cols) => cols.length >= 3)
       .map((cols) => {
         const fromRaw = cols[1].trim();
         const toRaw = cols[2].trim();
-        const type: RedirectType = "Temporary";
+        const rawType = cols[3]?.trim();
+        const type: RedirectType =
+          rawType && isRedirectType(rawType) ? rawType : "Temporary";
+
         return {
           from: fromRaw,
           to: toRaw,
@@ -125,6 +137,27 @@ export default function CatchAllPage() {
     }
     downloadJson(exportData, "next-redirects.json");
   };
+  const handleGetEntities = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `/api/entities?canonical=${encodeURIComponent(activeDomain)}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      setEntities(result.items || []);
+      console.log("Entities fetched:", result.items);
+    } catch (error) {
+      console.error("Failed to fetch entities:", error);
+      alert("Failed to fetch entities");
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <div className="p-8 mx-auto">
       <h1 className="text-2xl font-bold mb-6">Route Manager</h1>
@@ -139,7 +172,8 @@ export default function CatchAllPage() {
           className="block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700"
         />
         <p className="text-xs text-gray-500">
-          Expected columns: Domain, Current URL, Target redirect URL
+          Expected columns: Domain, Current URL, Target redirect URL, Redirect
+          Type (Permanent/Temporary)
         </p>
       </div>
 
@@ -153,7 +187,7 @@ export default function CatchAllPage() {
           Export as JSON
         </button>
         {Array.isArray(mappings) && mappings.length > 0 ? (
-          mappings.map((m, index) => (
+          mappings.map((m) => (
             <div
               key={m.from}
               className="w-full flex items-center justify-between gap-2 bg-gray-50 p-2 rounded"
@@ -227,9 +261,10 @@ export default function CatchAllPage() {
         <select
           value={activeDomain}
           onChange={(e) => setActiveDomain(e.target.value)}
+          className="dark:text-white dark:bg-background"
         >
           {Object.entries(domainToHost).map(([domain, host]) => (
-            <option key={domain} value={host} className="bg-black">
+            <option key={domain} value={host}>
               {domain}
             </option>
           ))}
@@ -268,28 +303,34 @@ export default function CatchAllPage() {
               className="w-full p-3 border rounded-r-lg focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Redirect type
-            </label>
-            <select
-              value={redirectType}
-              onChange={(e) => setRedirectType(e.target.value as RedirectType)}
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="permanent">Permanent (301)</option>
-              <option value="temporary">Temporary (302)</option>
-            </select>
-          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">
+            Redirect type
+          </label>
+          <select
+            value={redirectType}
+            onChange={(e) => setRedirectType(e.target.value as RedirectType)}
+            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:text-white dark:bg-background"
+          >
+            <option value="permanent">Permanent (301)</option>
+            <option value="temporary">Temporary (302)</option>
+          </select>
         </div>
 
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 font-medium"
+          className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 font-medium"
         >
           Add route mapping
         </button>
       </form>
+      <button
+        onClick={handleGetEntities}
+        className="mt-3 w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 font-medium"
+      >
+        Rewrite
+      </button>
     </div>
   );
 }
