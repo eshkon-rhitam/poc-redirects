@@ -23,8 +23,19 @@ const routeSlice = createSlice({
       }
       state.mappings.push(action.payload);
     },
+    updateMapping: (
+      state,
+      action: PayloadAction<{ from: string; to: string }>
+    ) => {
+      if (!Array.isArray(state.mappings)) return;
+      const idx = state.mappings.findIndex(
+        (m) => m.from === action.payload.from
+      );
+      if (idx === -1) return;
+      state.mappings[idx] = action.payload;
+    },
   },
 });
 
-export const { addMapping } = routeSlice.actions;
+export const { addMapping, updateMapping } = routeSlice.actions;
 export default routeSlice.reducer;
