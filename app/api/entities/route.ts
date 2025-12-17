@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
     // Process in batches of 5 concurrent requests
     const results = await processBatch(
       entities.items,
-      (entity) =>
+      (entity: any) =>
         updateEntity(entity.sys.id, changeCanonical, spaceId, environmentId),
       5
     );
