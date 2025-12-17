@@ -403,7 +403,7 @@ export default function CatchAllPage() {
               type="text"
               value={fromPath}
               onChange={(e) => setFromPath(e.target.value)}
-              placeholder="old-page"
+              placeholder="old-slug"
               className="w-full p-3 border rounded-r-lg focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -421,7 +421,7 @@ export default function CatchAllPage() {
               type="text"
               value={toPath}
               onChange={(e) => setToPath(e.target.value)}
-              placeholder="new-page"
+              placeholder="new-slug"
               className="w-full p-3 border rounded-r-lg focus:ring-2 focus:ring-blue-500"
             />
           </div>
