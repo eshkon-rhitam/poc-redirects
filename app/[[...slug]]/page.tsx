@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { domainToHost } from "@/lib/constants";
 import { buildExportData, downloadJson } from "@/lib/exportFunction";
+import { buildRedirectsFile } from "@/lib/buildReditectsFile";
 
 export default function CatchAllPage() {
   const dispatch = useAppDispatch();
@@ -32,12 +33,8 @@ export default function CatchAllPage() {
     domainToHost[Object.keys(domainToHost)[0]]
   );
   const [redirectType, setRedirectType] = useState<RedirectType>("Permanent");
-
-  const [entities, setEntities] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [canonicalUrl, setCanonicalUrl] = useState(
-    "https://www.altusgroup.com"
-  );
+  const [savingToGit, setSavingToGit] = useState(false);
 
   useEffect(() => {
     if (pathname === "/") return;
@@ -158,7 +155,6 @@ export default function CatchAllPage() {
       }
 
       const result = await response.json();
-      setEntities(result.items || []);
       console.log("Entities fetched:", result.items);
     } catch (error) {
       console.error("Failed to fetch entities:", error);
@@ -209,6 +205,31 @@ export default function CatchAllPage() {
       setLoading(false);
     }
   };
+
+  const handleSaveRedirectsToGit = async () => {
+    if (!Array.isArray(mappings) || mappings.length === 0) {
+      alert("No mappings to save");
+      return;
+    }
+    setSavingToGit(true);
+    try {
+      const redirectsText = buildRedirectsFile(mappings as any);
+      const res = await fetch("/api/save-redirects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ redirectsText }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      console.log("Git commit:", data.commitSha);
+      alert("Redirects saved to GitHub. Vercel will redeploy on push.");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to save redirects to GitHub");
+    } finally {
+      setSavingToGit(false);
+    }
+  };
   return (
     <div className="p-8 mx-auto">
       <h1 className="text-2xl font-bold mb-6">Route Manager</h1>
@@ -236,6 +257,14 @@ export default function CatchAllPage() {
           className="px-3 py-2 text-sm bg-emerald-600 text-white rounded hover:bg-emerald-700"
         >
           Export as JSON
+        </button>
+        <button
+          type="button"
+          onClick={handleSaveRedirectsToGit}
+          disabled={savingToGit}
+          className="px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+        >
+          {savingToGit ? "Saving to Git…" : "Save redirects to Git"}
         </button>
         {Array.isArray(mappings) && mappings.length > 0 ? (
           mappings.map((m) => (
