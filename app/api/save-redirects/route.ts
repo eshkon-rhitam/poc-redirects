@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// app/api/save-redirects/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN!;
@@ -19,7 +18,7 @@ async function createOrUpdateFile(content: string) {
     "User-Agent": "redirect-admin-service",
   };
 
-  // Get SHA if file exists
+  // Get SHA
   let sha: string | undefined;
   const getRes = await fetch(`${baseUrl}?ref=${BRANCH}`, { headers });
   if (getRes.ok) {
@@ -56,7 +55,6 @@ async function createOrUpdateFile(content: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    // Optional: auth check (e.g. header, session, etc.)
     const { redirectsText } = await req.json();
     if (typeof redirectsText !== "string" || !redirectsText.trim()) {
       return NextResponse.json(
