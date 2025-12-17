@@ -54,9 +54,10 @@ export default function CatchAllPage() {
     e.preventDefault();
     if (!fromPath && !toPath) return;
     if (!Array.isArray(mappings)) return;
-
-    const normalizedFrom = `${activeDomain}/${fromPath.replace(/^\/+/, "")}`;
-    const normalizedTo = `${activeDomain}/${toPath.replace(/^\/+/, "")}`;
+    const formRoute = fromPath ? `/${fromPath.replace(/^\/+/, "")}` : "";
+    const toRoute = toPath ? `/${toPath.replace(/^\/+/, "")}` : "";
+    const normalizedFrom = `${activeDomain}${formRoute}`;
+    const normalizedTo = `${activeDomain}${toRoute}`;
 
     const existing = mappings.find((m) => m.from === normalizedFrom);
     if (existing) {
@@ -139,9 +140,11 @@ export default function CatchAllPage() {
   };
   const handleGetEntities = async () => {
     setLoading(true);
+    const completeDomain =
+      fromPath === "" ? activeDomain : activeDomain + "/" + fromPath;
     try {
       const response = await fetch(
-        `/api/entities?canonical=${encodeURIComponent(activeDomain)}`
+        `/api/entities?canonical=${encodeURIComponent(completeDomain)}`
       );
 
       if (!response.ok) {
@@ -154,6 +157,46 @@ export default function CatchAllPage() {
     } catch (error) {
       console.error("Failed to fetch entities:", error);
       alert("Failed to fetch entities");
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleUpdateEntities = async () => {
+    setLoading(true);
+    const completeDomain =
+      fromPath === "" ? activeDomain : activeDomain + "/" + fromPath;
+    const newCanonical =
+      toPath === "" ? activeDomain : activeDomain + "/" + toPath;
+
+    try {
+      const response = await fetch(
+        `/api/entities?canonical=${encodeURIComponent(
+          completeDomain
+        )}&changeCanonical=${encodeURIComponent(newCanonical)}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("Update result:", result);
+
+      if (result.updated > 0) {
+        alert(`Successfully updated ${result.updated} entities!`);
+        await handleGetEntities();
+      } else {
+        alert("No entities found to update");
+      }
+    } catch (error) {
+      console.error("Failed to update entities:", error);
+      alert("Failed to update entities");
     } finally {
       setLoading(false);
     }
@@ -215,6 +258,48 @@ export default function CatchAllPage() {
                     <option value="Temporary">Temporary (307)</option>
                     <option value="Permanent">Permanent (308)</option>
                   </select>
+                  <button
+                    className="px-2 py-1 text-sm bg-blue-600 text-white rounded"
+                    onClick={async () => {
+                      setLoading(true);
+                      try {
+                        const response = await fetch(
+                          `/api/entities?canonical=${editFrom}&changeCanonical=${editTo}`,
+                          {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                          }
+                        );
+
+                        if (!response.ok) {
+                          throw new Error(
+                            `HTTP error! status: ${response.status}`
+                          );
+                        }
+
+                        const result = await response.json();
+                        console.log("Update result:", result);
+
+                        if (result.updated > 0) {
+                          alert(
+                            `Successfully updated ${result.updated} entities!`
+                          );
+                        } else {
+                          alert("No entities found to update");
+                        }
+                      } catch (error) {
+                        console.error("Failed to update entities:", error);
+                        alert("Failed to update entities");
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    disabled={loading}
+                  >
+                    {loading ? "Rewriting..." : "Rewrite"}
+                  </button>
                   <button
                     className="px-2 py-1 text-sm bg-green-600 text-white rounded"
                     onClick={saveEdit}
