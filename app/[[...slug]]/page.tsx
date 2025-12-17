@@ -13,7 +13,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { domainToHost } from "@/lib/constants";
 import { buildExportData, downloadJson } from "@/lib/exportFunction";
-import { getEntitiesByCanonical } from "@/lib/entities";
 
 export default function CatchAllPage() {
   const dispatch = useAppDispatch();
@@ -52,10 +51,17 @@ export default function CatchAllPage() {
 
   const handleAddRedirect = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fromPath && !toPath) return;
+    if (!fromPath && !toPath) {
+      alert("From or To path is required");
+      return;
+    }
     if (!Array.isArray(mappings)) return;
     const formRoute = fromPath ? `/${fromPath.replace(/^\/+/, "")}` : "";
     const toRoute = toPath ? `/${toPath.replace(/^\/+/, "")}` : "";
+    if (formRoute === toRoute) {
+      alert("Domains must differ");
+      return;
+    }
     const normalizedFrom = `${activeDomain}${formRoute}`;
     const normalizedTo = `${activeDomain}${toRoute}`;
 
@@ -167,7 +173,10 @@ export default function CatchAllPage() {
       fromPath === "" ? activeDomain : activeDomain + "/" + fromPath;
     const newCanonical =
       toPath === "" ? activeDomain : activeDomain + "/" + toPath;
-
+    if (newCanonical === completeDomain) {
+      alert("Rewrite only possible for different domains");
+      return;
+    }
     try {
       const response = await fetch(
         `/api/entities?canonical=${encodeURIComponent(
@@ -186,7 +195,6 @@ export default function CatchAllPage() {
       }
 
       const result = await response.json();
-      console.log("Update result:", result);
 
       if (result.updated > 0) {
         alert(`Successfully updated ${result.updated} entities!`);
@@ -411,7 +419,7 @@ export default function CatchAllPage() {
         </button>
       </form>
       <button
-        onClick={handleGetEntities}
+        onClick={handleUpdateEntities}
         className="mt-3 w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 font-medium"
       >
         Rewrite
