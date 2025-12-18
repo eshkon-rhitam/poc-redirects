@@ -9,6 +9,17 @@ import {
   updateMapping,
   upsertMany,
 } from "@/lib/features/routeSlice";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Download, Upload } from "lucide-react";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { domainToHost } from "@/lib/constants";
@@ -35,6 +46,8 @@ export default function CatchAllPage() {
   const [redirectType, setRedirectType] = useState<RedirectType>("Permanent");
   const [loading, setLoading] = useState(false);
   const [savingToGit, setSavingToGit] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportData, setExportData] = useState<any[]>([]);
 
   useEffect(() => {
     if (pathname === "/") return;
@@ -133,14 +146,14 @@ export default function CatchAllPage() {
     dispatch(upsertMany(parsed));
     e.target.value = "";
   };
-  const handleExport = () => {
-    const exportData = buildExportData(mappings);
-    if (!exportData.length) {
-      alert("No mappings to export");
-      return;
-    }
-    downloadJson(exportData, "next-redirects.json");
-  };
+  // const handleExport = () => {
+  //   const exportData = buildExportData(mappings);
+  //   if (!exportData.length) {
+  //     alert("No mappings to export");
+  //     return;
+  //   }
+  //   downloadJson(exportData, "next-redirects.json");
+  // };
   const handleGetEntities = async () => {
     setLoading(true);
     const completeDomain =
@@ -230,6 +243,48 @@ export default function CatchAllPage() {
       setSavingToGit(false);
     }
   };
+
+  const handleExport = () => {
+    const data = buildExportData(mappings);
+    if (!data.length) {
+      alert("No mappings to export");
+      return;
+    }
+    setExportData(data);
+    setShowExportDialog(true);
+  };
+
+  const handleDownload = () => {
+    downloadJson(exportData, "next-redirects.json");
+    setShowExportDialog(false);
+  };
+
+  const handleSaveToContentful = async () => {
+    setSavingToGit(true); // Reuse loading state or add new one
+    try {
+      const response = await fetch("/api/save-contentful", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ redirects: exportData }),
+      });
+
+      if (!response.ok) throw new Error("Failed to save to Contentful");
+
+      const result = await response.json();
+      alert(
+        `Successfully saved ${
+          result.saved || exportData.length
+        } mappings to Contentful!`
+      );
+    } catch (error) {
+      console.error("Contentful save failed:", error);
+      alert("Failed to save to Contentful. Proceeding with download...");
+      handleDownload();
+    } finally {
+      setSavingToGit(false);
+      setShowExportDialog(false);
+    }
+  };
   return (
     <div className="p-8 mx-auto">
       <h1 className="text-2xl font-bold mb-6">Route Manager</h1>
@@ -251,18 +306,52 @@ export default function CatchAllPage() {
 
       <div className="w-full mb-8 space-y-2 text-black">
         <h2 className="font-semibold text-white">Current mappings</h2>
-        <button
-          type="button"
-          onClick={handleExport}
-          className="px-3 py-2 text-sm bg-emerald-600 text-white rounded hover:bg-emerald-700"
+        <Dialog
+          open={showExportDialog}
+          onOpenChange={showExportDialog ? setShowExportDialog : handleExport}
         >
-          Export as JSON
-        </button>
+          <DialogTrigger asChild>
+            <Button
+              type="button"
+              className="px-3 py-2 text-sm bg-emerald-600 text-white rounded hover:bg-emerald-700"
+            >
+              Export
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Export Redirects</DialogTitle>
+              <DialogDescription>
+                Choose how you want to export your {exportData.length} redirect
+                mappings:
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-3 pt-4">
+              <Button
+                onClick={handleDownload}
+                className="flex items-center gap-2"
+                variant="outline"
+              >
+                <Download className="h-4 w-4" />
+                Download JSON file
+              </Button>
+              <Button
+                onClick={handleSaveToContentful}
+                className="flex items-center gap-2"
+                disabled={savingToGit}
+              >
+                <Upload className="h-4 w-4" />
+                Save to Contentful
+                {savingToGit && "…"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         <button
           type="button"
           onClick={handleSaveRedirectsToGit}
           disabled={savingToGit}
-          className="px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+          className="px-3 py-2 ml-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
         >
           {savingToGit ? "Saving to Git…" : "Save redirects to Git"}
         </button>
