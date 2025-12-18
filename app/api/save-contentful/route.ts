@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
           destination: mapping.destination,
           permanent: mapping.type === "Permanent",
           enabled: true,
-          baseDomain: process.env.ACTIVE_DOMAIN ?? "AltusGroup",
+          baseDomain: mapping.baseDomain,
         };
 
         // Check if entry already exists by source + baseDomain

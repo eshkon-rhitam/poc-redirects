@@ -450,7 +450,7 @@ export default function CatchAllPage() {
                   <span className="font-mono w-max">{m.from}</span>
                   <span className="flex-1 h-px bg-black" />
                   <span className="font-mono ml-auto">{m.to}</span>
-                  <span className="font-mono ml-auto bg-background text-white p-2 rounded-lg">
+                  <span className="font-mono ml-auto p-2 rounded-lg">
                     {m.type}
                   </span>
                   <button
