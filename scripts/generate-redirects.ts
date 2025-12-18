@@ -9,12 +9,35 @@ async function main() {
   const env = await space.getEnvironment(
     process.env.CONTENTFUL_ENVIRONMENT ?? "a4"
   );
-
+  const activeDomain = process.env.ACTIVE_DOMAIN ?? "AltusGroup";
+  if (!activeDomain) {
+    console.error("ACTIVE_DOMAIN env var is required");
+    process.exit(1);
+  }
   const response = await env.getEntries({
     content_type: "redirect",
+    locale,
     "fields.enabled": true,
+    "fields.baseDomain": activeDomain,
   });
 
+  if (response.items.length === 0) {
+    console.warn("No redirect entries found in Contentful");
+    // empty file
+    const filePath = resolve(process.cwd(), "redirects.ts");
+    const fileContent = `// AUTO-GENERATED FILE. DO NOT EDIT.
+export type RedirectRule = {
+  source: string;
+  destination: string;
+  permanent: boolean;
+};
+
+export const redirects: RedirectRule[] = [];
+`;
+    writeFileSync(filePath, fileContent, "utf8");
+    console.log(`Wrote 0 redirects to ${filePath}`);
+    return;
+  }
   const redirects = response.items.map((item: any) => ({
     source: item.fields.source[locale],
     destination: item.fields.destination[locale],

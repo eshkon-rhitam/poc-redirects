@@ -3,12 +3,6 @@ export type RedirectRule = {
   source: string;
   destination: string;
   permanent: boolean;
-};;
+};
 
-export const redirects: RedirectRule[] = [
-  {
-    "source": "/test",
-    "destination": "/",
-    "permanent": false
-  }
-];
+export const redirects: RedirectRule[] = [];
